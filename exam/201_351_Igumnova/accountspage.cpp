@@ -1,8 +1,5 @@
 #include "accountspage.h"
 #include <QPalette>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
-#include <openssl/aes.h>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -11,119 +8,46 @@
 #include <QtWidgets>
 #include <QApplication>
 #include <QWidget>
+#include <openssl/evp.h>
+#include <openssl/aes.h>
 
-// Функция для шифрования данных
-QByteArray encryptData(const QByteArray& data, const unsigned char* key) {
-    EVP_CIPHER_CTX* ctx;
-    int len;
-    int ciphertext_len;
-    unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char ciphertext[data.size() + AES_BLOCK_SIZE];
-
-    memset(iv, 0x00, AES_BLOCK_SIZE);
-
-    ctx = EVP_CIPHER_CTX_new();
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
-
-    EVP_EncryptUpdate(ctx, ciphertext, &len, reinterpret_cast<const unsigned char*>(data.data()), data.size());
-    ciphertext_len = len;
-
-    EVP_EncryptFinal_ex(ctx, ciphertext + len, &len);
-    ciphertext_len += len;
-
-    EVP_CIPHER_CTX_free(ctx);
-
-    return QByteArray(reinterpret_cast<const char*>(ciphertext), ciphertext_len);
-}
-
-// Функция для расшифрования данных
-QByteArray decryptData(const QByteArray& data, const unsigned char* key) {
-    EVP_CIPHER_CTX* ctx;
-    int len;
-    int plaintext_len;
-    unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char plaintext[data.size()];
-
-    memset(iv, 0x00, AES_BLOCK_SIZE);
-
-    ctx = EVP_CIPHER_CTX_new();
-    EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
-
-    EVP_DecryptUpdate(ctx, plaintext, &len, reinterpret_cast<const unsigned char*>(data.data()), data.size());
-    plaintext_len = len;
-
-    EVP_DecryptFinal_ex(ctx, plaintext + len, &len);
-    plaintext_len += len;
-
-    EVP_CIPHER_CTX_free(ctx);
-
-    return QByteArray(reinterpret_cast<const char*>(plaintext), plaintext_len);
-}
+QByteArray key = "password123";
+QByteArray encryptData(const QByteArray &data, const QByteArray &key);
+QByteArray decryptData(const QByteArray &encryptedData, const QByteArray &key);
 
 AccountsPage::AccountsPage(QWidget *parent)
     : QWidget(parent)
 {
-    QFile file("data.json");
-    if (file.exists()) {
-        if (file.open(QIODevice::ReadOnly)) {
-            // Файл успешно открыт
-        } else {
-            // Ошибка открытия файла
-            QMessageBox::information(this, "Ошибка", "Не удалось открыть файл!");
-        }
-    } else {
-        // Файл не существует
-        QMessageBox::information(this, "Ошибка", "Файла не существует!");
+    // Открываем JSON файл
+    QFile fileJson("./data.json");
+//    QFile file("data.json");
+    if (!fileJson.open(QIODevice::ReadOnly)) {
+        QMessageBox::information(this, "Ошибка", "Не удалось открыть файл!");
     }
-//    if (!file.open(QIODevice::ReadOnly)) {
-//        QMessageBox::information(this, "Ошибка", "Не удалось открыть файл!");
-//    }
+    QByteArray jsonData = fileJson.readAll();
+    fileJson.close();
 
-    QByteArray jsonData = file.readAll();
-    file.close();
+    // Парсим JSON
+    QJsonParseError jsonError;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonData, &jsonError);
 
-    QJsonDocument document = QJsonDocument::fromJson(jsonData);
-////    if (!document.isObject()) {
-////        QMessageBox::information(this, "Ошибка", "Не удалось прочитать JSON объект!");
-////    }
+    // Получаем массив объектов из JSON
+    QJsonArray jsonArray = jsonDoc.array();
 
-    QJsonObject jsonObject = document.object();
-////    if (!jsonObject.contains("accounts") || !jsonObject["accounts"].isArray()) {
-////        QMessageBox::information(this, "Ошибка", "Некорректная структура JSON файла!");
-////    }
+    // Шифруем данные
+    //QByteArray encryptedData = encryptData(jsonData, key);
 
-    QJsonArray accountsArray = jsonObject["accounts"].toArray();
-    QList<Account> accounts;
-
-    foreach (const QJsonValue &value, accountsArray) {
-        if (value.isObject()) {
-            QJsonObject accountObject = value.toObject();
-
-            int id = accountObject["id"].toInt();
-            double amount = accountObject["amount"].toDouble();
-
-            QString dateString = accountObject["date"].toString();
-            QDate date = QDate::fromString(dateString, "yyyy-MM-dd");
-            QString color = accountObject["color"].toString();
-
-            Account account{id, amount, date, color};
-            accounts.append(account);
-        }
-    }
-
-//    // Выводим данные для проверки
-//    foreach (const Account &account, accounts) {
-//        qDebug() << account.id << account.amount << account.date.toString("yyyy-MM-dd");
-//    }
+    // Расшифровываем данные
+    QByteArray decryptedData = decryptData(jsonData, key);
 
      //Инициализируем массив счетов
-//    accounts = {
-//        {1, 1000.0, QDate(2021, 1, 1), "blue"},
-//        {2, 2000.0, QDate(2021, 2, 1), "green"},
-//        {3, 3000.0, QDate(2021, 3, 1), "red"},
-//        {4, 4000.0, QDate(2021, 4, 1),"yellow"},
-//        {5, 5000.0, QDate(2021, 5, 1),"purple"}
-//    };
+    accounts = {
+        {1, 1000.0, QDate(2021, 1, 1), "blue"},
+        {2, 2000.0, QDate(2021, 2, 1), "green"},
+        {3, 3000.0, QDate(2021, 3, 1), "red"},
+        {4, 4000.0, QDate(2021, 4, 1),"yellow"},
+        {5, 5000.0, QDate(2021, 5, 1),"purple"}
+    };
     // Шифрование данных
 //    encryptedData = encryptData(QByteArray(reinterpret_cast<const char*>(accounts.data()), sizeof(accounts)), key);
 
@@ -192,4 +116,63 @@ void AccountsPage::loadAccount(int index)
     p.setColor(QPalette::Background, QColor(account.color));
     setAutoFillBackground(true);
     setPalette(p);
+}
+
+QByteArray encryptData(const QByteArray &data, const QByteArray &key)
+{
+    AES_KEY aesKey;
+    AES_set_encrypt_key(reinterpret_cast<const unsigned char*>(key.constData()), 256, &aesKey);
+
+    QByteArray encryptedData;
+
+    int dataLength = data.length();
+
+    // Расчет длины дополнительного блока
+    int paddingLength = AES_BLOCK_SIZE - dataLength % AES_BLOCK_SIZE;
+    int paddedDataLength = dataLength + paddingLength;
+
+    // Создание выходного массива с дополнительным блоком
+    encryptedData.resize(paddedDataLength);
+
+    // Записываем оригинальные данные в выходной массив
+    memcpy(encryptedData.data(), data.constData(), dataLength);
+
+    // Заполняем остаток выходного массива случайными данными
+    for (int i = dataLength; i < paddedDataLength; i++) {
+        encryptedData[i] = qrand() % 256;
+    }
+
+    // Шифруем данные по блокам
+    for (int i = 0; i < paddedDataLength; i += AES_BLOCK_SIZE) {
+        AES_encrypt(reinterpret_cast<const unsigned char*>(encryptedData.constData() + i),
+                    reinterpret_cast<unsigned char*>(encryptedData.data() + i),
+                    &aesKey);
+    }
+
+    return encryptedData;
+}
+
+
+
+QByteArray decryptData(const QByteArray &encryptedData, const QByteArray &key)
+{
+    AES_KEY aesKey;
+    AES_set_decrypt_key(reinterpret_cast<const unsigned char*>(key.constData()), 256, &aesKey);
+
+    int encryptedDataLength = encryptedData.length();
+    int paddingLength = AES_BLOCK_SIZE - encryptedDataLength % AES_BLOCK_SIZE;
+
+    QByteArray decryptedData;
+    decryptedData.resize(encryptedDataLength);
+
+    // Расшифровываем данные по блокам
+    for (int i = 0; i < encryptedDataLength; i += AES_BLOCK_SIZE) {
+        AES_decrypt(reinterpret_cast<const unsigned char*>(encryptedData.constData() + i),
+                    reinterpret_cast<unsigned char*>(decryptedData.data() + i),
+                    &aesKey);
+    }
+
+    decryptedData.chop(paddingLength); // Удаляем дополнительный блок
+
+    return decryptedData;
 }
