@@ -10,7 +10,8 @@
 struct Account {
     int id;
     double amount;
-    QDate openingDate;
+    QDate date;
+    QString color;
 };
 
 class AccountsPage: public QWidget
