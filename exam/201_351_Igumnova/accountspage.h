@@ -23,6 +23,9 @@ private slots:
     void previousAccount();
     void nextAccount();
 
+signals:
+    void newWin();
+
 private:
     QVector<Account> accounts;
     int currentIndex;
